@@ -21,6 +21,8 @@ jobs:
         run: npm install
 
       - name: Build Windows installer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build
 
       - name: Upload JARVIS installer
