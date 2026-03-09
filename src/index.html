@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>J.A.R.V.I.S.</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  width: 480px; height: 720px;
+  background: transparent;
+  font-family: 'Courier New', monospace;
+  user-select: none;
+  overflow: hidden;
+}
+
+.app {
+  width: 480px; height: 720px;
+  background: rgba(1,10,18,0.97);
+  border: 1px solid rgba(0,212,255,0.3);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.app::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  border-radius: 20px;
+  pointer-events: none;
+}
+
+/* ── Titlebar ── */
+.titlebar {
+  -webkit-app-region: drag;
+  height: 52px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 22px;
+  border-bottom: 1px solid rgba(0,212,255,0.1);
+  flex-shrink: 0;
+}
+.titlebar-left { display:flex; align-items:center; gap:10px; }
+.dot { width:7px; height:7px; border-radius:50%; background:#00d4ff; animation: blink 2s infinite; }
+.app-name { font-size:11px; letter-spacing:5px; color:rgba(0,212,255,0.7); }
+.controls { -webkit-app-region:no-drag; display:flex; gap:8px; }
+.cbtn {
+  width:28px; height:28px; border-radius:50%;
+  border:1px solid rgba(0,212,255,0.3);
+  background:transparent; color:rgba(0,212,255,0.5);
+  cursor:pointer; font-size:13px;
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.2s;
+}
+.cbtn:hover { background:rgba(0,212,255,0.1); color:#00d4ff; }
+.cbtn.x:hover { background:rgba(255,60,60,0.15); border-color:rgba(255,60,60,0.4); color:#ff5555; }
+
+/* ── Setup screen ── */
+#setup {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:40px 36px; gap:22px;
+}
+.s-title { font-size:26px; letter-spacing:7px; color:#00d4ff; text-shadow:0 0 20px rgba(0,212,255,0.5); }
+.s-sub { font-size:10px; letter-spacing:2px; color:rgba(0,212,255,0.4); text-align:center; line-height:2; }
+.s-input {
+  width:100%; background:rgba(0,212,255,0.05);
+  border:1px solid rgba(0,212,255,0.3); border-radius:8px;
+  padding:14px 16px; color:#00d4ff;
+  font-family:'Courier New',monospace; font-size:12px; letter-spacing:1px;
+  outline:none; transition:border-color 0.2s;
+}
+.s-input:focus { border-color:rgba(0,212,255,0.7); }
+.s-input::placeholder { color:rgba(0,212,255,0.2); }
+.s-btn {
+  width:100%; padding:14px;
+  background:rgba(0,212,255,0.08);
+  border:1px solid rgba(0,212,255,0.35); border-radius:8px;
+  color:#00d4ff; font-family:'Courier New',monospace;
+  font-size:12px; letter-spacing:4px; cursor:pointer;
+  transition:all 0.2s;
+}
+.s-btn:hover { background:rgba(0,212,255,0.18); }
+.s-link { font-size:10px; color:rgba(0,212,255,0.35); text-align:center; letter-spacing:1px; cursor:pointer; }
+.s-link:hover { color:#00d4ff; }
+
+/* ── Main screen ── */
+#main {
+  flex:1; display:none; flex-direction:column;
+  align-items:center; padding:18px 24px 20px; gap:14px;
+}
+
+/* ── Reactor ── */
+.reactor { position:relative; width:190px; height:190px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.ring { position:absolute; border-radius:50%; border:1px solid var(--c); transition:border-color 0.5s; }
+.r1 { width:186px; height:186px; border-top-width:2px; animation:rot 5s linear infinite; }
+.r2 { width:150px; height:150px; border-bottom-width:2px; animation:rotR 7s linear infinite; opacity:0.6; }
+.r3 { width:114px; height:114px; border-top-width:2px; animation:rot 3s linear infinite; opacity:0.4; }
+.ripple { position:absolute; width:186px; height:186px; border-radius:50%; border:1px solid var(--c); animation:rip 1.8s ease-out infinite; display:none; }
+.ripple2 { animation-delay:0.7s; }
+.core {
+  width:80px; height:80px; border-radius:50%;
+  border:2px solid var(--c);
+  background:radial-gradient(circle, rgba(0,212,255,0.12) 0%, transparent 70%);
+  display:flex; align-items:center; justify-content:center;
+  animation:pulse 2.5s ease-in-out infinite;
+  box-shadow:0 0 30px rgba(0,212,255,0.15), inset 0 0 15px rgba(0,212,255,0.05);
+  transition:border-color 0.5s, box-shadow 0.5s;
+}
+.bars { display:none; gap:3px; align-items:center; }
+.bar { width:3px; height:20px; background:#00ff88; border-radius:2px; transform-origin:center; }
+.spin-icon { display:none; width:20px; height:20px; border:2px solid rgba(255,140,0,0.3); border-top-color:#ff8c00; border-radius:50%; animation:spin 0.8s linear infinite; }
+.core-txt { font-size:8px; letter-spacing:1px; color:var(--c); text-align:center; }
+
+/* ── Status ── */
+.status { font-size:10px; letter-spacing:5px; color:var(--c); transition:color 0.5s; text-align:center; height:16px; flex-shrink:0; }
+
+/* ── Transcript ── */
+.transcript { font-size:14px; letter-spacing:3px; color:#ff8c00; text-align:center; min-height:20px; flex-shrink:0; }
+
+/* ── Response ── */
+.response {
+  width:100%; background:rgba(0,212,255,0.04);
+  border:1px solid rgba(0,212,255,0.12); border-radius:10px;
+  padding:14px 16px; font-size:12px; line-height:1.8;
+  color:#b8eaf5; letter-spacing:0.3px;
+  min-height:70px; max-height:150px; overflow-y:auto;
+  flex-shrink:0;
+}
+.response::-webkit-scrollbar { width:3px; }
+.response::-webkit-scrollbar-thumb { background:rgba(0,212,255,0.2); border-radius:2px; }
+
+/* ── Hint ── */
+.hint { font-size:10px; color:rgba(0,212,255,0.22); letter-spacing:3px; text-align:center; line-height:2.3; flex-shrink:0; }
+.hint b { color:#00d4ff; font-size:12px; font-weight:normal; }
+
+/* ── Error ── */
+.err { width:100%; background:rgba(255,0,0,0.05); border:1px solid rgba(255,60,60,0.2); border-radius:6px; padding:10px 14px; font-size:10px; color:#ff7777; letter-spacing:1px; text-align:center; display:none; flex-shrink:0; }
+
+/* ── Log ── */
+.log {
+  width:100%; flex:1;
+  background:rgba(0,0,0,0.35); border:1px solid rgba(0,212,255,0.07);
+  border-radius:8px; padding:10px 12px; overflow-y:auto;
+  min-height:60px;
+}
+.log::-webkit-scrollbar { width:3px; }
+.log::-webkit-scrollbar-thumb { background:rgba(0,212,255,0.15); border-radius:2px; }
+.ll { font-size:9px; letter-spacing:1px; line-height:2; }
+.ll.u { color:#ff8c00; }
+.ll.j { color:rgba(0,212,255,0.55); }
+.ll.s { color:rgba(0,212,255,0.22); }
+
+/* ── Keyframes ── */
+@keyframes rot    { to { transform:rotate(360deg); } }
+@keyframes rotR   { to { transform:rotate(-360deg); } }
+@keyframes pulse  { 0%,100%{opacity:.45;transform:scale(1)} 50%{opacity:1;transform:scale(1.05)} }
+@keyframes rip    { 0%{transform:scale(.85);opacity:.8} 100%{transform:scale(2.3);opacity:0} }
+@keyframes blink  { 0%,100%{opacity:1} 50%{opacity:.15} }
+@keyframes barP   { 0%,100%{transform:scaleY(.15)} 50%{transform:scaleY(1)} }
+@keyframes spin   { to{transform:rotate(360deg)} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+<div class="app" id="app" style="--c:#1a4a5a">
+
+  <!-- Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <div class="dot"></div>
+      <div class="app-name">J.A.R.V.I.S.</div>
+    </div>
+    <div class="controls">
+      <button class="cbtn" onclick="ipc('minimize')" title="Minimize to tray">—</button>
+      <button class="cbtn x" onclick="ipc('quit')" title="Quit">✕</button>
+    </div>
+  </div>
+
+  <!-- Setup Screen -->
+  <div id="setup">
+    <div class="s-title">J.A.R.V.I.S.</div>
+    <div class="s-sub">STARK INDUSTRIES NEURAL AI<br>Enter your Anthropic API key to activate</div>
+    <input class="s-input" id="keyinput" type="password" placeholder="sk-ant-api03-..." onkeydown="if(event.key==='Enter')activate()"/>
+    <button class="s-btn" onclick="activate()">ACTIVATE J.A.R.V.I.S.</button>
+    <div class="s-link" onclick="ipc('open-url','https://console.anthropic.com')">
+      Get your FREE key at console.anthropic.com
+    </div>
+  </div>
+
+  <!-- Main Screen -->
+  <div id="main">
+    <!-- Reactor -->
+    <div class="reactor">
+      <div class="ripple" id="rip1"></div>
+      <div class="ripple ripple2" id="rip2"></div>
+      <div class="ring r1"></div>
+      <div class="ring r2"></div>
+      <div class="ring r3"></div>
+      <div class="core" id="core">
+        <div class="bars" id="bars">
+          <div class="bar" style="animation:barP .5s 0s ease-in-out infinite"></div>
+          <div class="bar" style="animation:barP .5s .1s ease-in-out infinite"></div>
+          <div class="bar" style="animation:barP .5s .2s ease-in-out infinite"></div>
+          <div class="bar" style="animation:barP .5s .3s ease-in-out infinite"></div>
+          <div class="bar" style="animation:barP .5s .4s ease-in-out infinite"></div>
+        </div>
+        <div class="spin-icon" id="spinner"></div>
+        <div class="core-txt" id="coretxt">SLEEP</div>
+      </div>
+    </div>
+
+    <div class="status" id="status">SAY · HEY JARVIS</div>
+    <div class="transcript" id="transcript"></div>
+    <div class="response" id="response">Awaiting your command, sir.</div>
+    <div class="hint" id="hint">SAY <b>"HEY JARVIS"</b> TO WAKE HER UP<br><span style="font-size:9px;color:rgba(0,212,255,0.18)">THEN SAY A WORD OR ASK ANYTHING</span></div>
+    <div class="err" id="err"></div>
+    <div class="log" id="log"></div>
+  </div>
+
+</div>
+
+<script>
+const { ipcRenderer } = require('electron');
+
+// helpers
+const $ = id => document.getElementById(id);
+const ipc = (ch, ...a) => ipcRenderer.invoke(ch, ...a);
+
+// state
+let apiKey = '', awake = false, speaking = false;
+let history = [], recognition = null;
+const synth = window.speechSynthesis;
+let femaleVoice = null;
+
+const WAKE = ['hey jarvis','jarvis','wake up jarvis','jarvis wake up','hey j.a.r.v.i.s'];
+const COLORS = { sleep:'#1a4a5a', listen:'#00d4ff', think:'#ff8c00', speak:'#00ff88' };
+
+// ── color ──────────────────────────────────────────────
+function setColor(c) {
+  $('app').style.setProperty('--c', COLORS[c]);
+}
+
+// ── UI state ───────────────────────────────────────────
+function setState(s) {
+  $('bars').style.display = 'none';
+  $('spinner').style.display = 'none';
+  $('coretxt').style.display = 'none';
+  $('rip1').style.display = 'none';
+  $('rip2').style.display = 'none';
+  setColor(s);
+
+  if (s === 'sleep' || s === 'listen') {
+    $('coretxt').style.display = 'block';
+    $('coretxt').textContent = awake ? 'READY' : 'SLEEP';
+    $('status').textContent = awake ? 'LISTENING...' : 'SAY · HEY JARVIS';
+  } else if (s === 'think') {
+    $('spinner').style.display = 'block';
+    $('rip1').style.display = 'block';
+    $('rip2').style.display = 'block';
+    $('status').textContent = 'PROCESSING...';
+  } else if (s === 'speak') {
+    $('bars').style.display = 'flex';
+    $('rip1').style.display = 'block';
+    $('rip2').style.display = 'block';
+    $('status').textContent = 'JARVIS SPEAKING';
+  }
+}
+
+// ── log ────────────────────────────────────────────────
+function log(type, text) {
+  const d = document.createElement('div');
+  d.className = 'll ' + type;
+  d.textContent = (type==='u' ? '▶ YOU  : ' : type==='s' ? '  SYS  : ' : '  J.A.R: ') + text;
+  $('log').appendChild(d);
+  $('log').scrollTop = 9999;
+  while ($('log').children.length > 24) $('log').removeChild($('log').firstChild);
+}
+
+// ── voices ─────────────────────────────────────────────
+function loadVoices() {
+  const vs = synth.getVoices();
+  const kw = ['zira','hazel','karen','samantha','victoria','moira','fiona','tessa','female','woman'];
+  femaleVoice = vs.find(v => kw.some(k => v.name.toLowerCase().includes(k)))
+    || vs.find(v => v.lang.startsWith('en')) || vs[0];
+}
+synth.onvoiceschanged = loadVoices;
+loadVoices();
+
+// ── speak ──────────────────────────────────────────────
+function speak(text, cb) {
+  synth.cancel();
+  speaking = true;
+  setState('speak');
+  $('response').textContent = text;
+  log('j', text);
+
+  const u = new SpeechSynthesisUtterance(text);
+  if (femaleVoice) u.voice = femaleVoice;
+  u.rate = 0.92; u.pitch = 0.82; u.volume = 1;
+
+  u.onend = u.onerror = () => {
+    speaking = false;
+    setState('listen');
+    if (cb) cb();
+  };
+  synth.speak(u);
+}
+
+// ── claude ─────────────────────────────────────────────
+async function askClaude(input) {
+  setState('think');
+  log('u', input);
+  $('transcript').textContent = '';
+  history.push({ role:'user', content:input });
+  if (history.length > 20) history = history.slice(-20);
+
+  const reply = await ipc('ask-claude', { messages:history, apiKey });
+  history.push({ role:'assistant', content:reply });
+
+  speak(reply, () => { awake = true; setState('listen'); });
+}
+
+// ── recognition ────────────────────────────────────────
+function startMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showErr('Speech recognition not available.'); return; }
+
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+
+  recognition.onresult = e => {
+    if (speaking) return;
+    const latest = e.results[e.results.length - 1];
+    const txt = latest[0].transcript.trim().toLowerCase();
+    $('transcript').textContent = txt ? `"${txt}"` : '';
+    if (!latest.isFinal) return;
+    $('transcript').textContent = '';
+
+    const isWake = WAKE.some(p => txt.includes(p));
+
+    if (!awake) {
+      if (isWake) {
+        awake = true;
+        $('hint').style.display = 'none';
+        log('s', 'JARVIS ACTIVATED');
+        speak("Online, sir. What's on your mind?", () => { awake = true; });
+      }
+    } else {
+      let inp = txt;
+      WAKE.forEach(p => { inp = inp.replace(p,'').trim(); });
+      if (inp.length > 0) {
+        awake = false;
+        askClaude(inp);
+      }
+    }
+  };
+
+  recognition.onerror = e => {
+    if (e.error === 'not-allowed') showErr('Microphone denied. Allow mic access in Windows settings.');
+  };
+
+  recognition.onend = () => {
+    setTimeout(() => { try { recognition.start(); } catch{} }, 300);
+  };
+
+  try { recognition.start(); setState('sleep'); log('s','MICROPHONE ACTIVE'); } catch(e) { showErr(e.message); }
+}
+
+function showErr(m) {
+  $('err').textContent = '⚠ ' + m;
+  $('err').style.display = 'block';
+}
+
+// ── activate ───────────────────────────────────────────
+async function activate() {
+  const k = $('keyinput').value.trim();
+  if (!k) return;
+  if (!k.startsWith('sk-ant-')) {
+    alert('Invalid key. Should start with sk-ant-\nGet it free at console.anthropic.com');
+    return;
+  }
+  apiKey = k;
+  await ipc('save-api-key', k);
+  $('setup').style.display = 'none';
+  $('main').style.display = 'flex';
+  setState('sleep');
+  log('s','NEURAL LINK ESTABLISHED');
+  setTimeout(() => {
+    speak('J.A.R.V.I.S. online. All systems operational, sir.', () => startMic());
+  }, 400);
+}
+
+// ── init ───────────────────────────────────────────────
+window.onload = async () => {
+  const k = await ipc('get-api-key');
+  if (k) {
+    apiKey = k;
+    $('setup').style.display = 'none';
+    $('main').style.display = 'flex';
+    setState('sleep');
+    setTimeout(() => speak('J.A.R.V.I.S. online, sir.', () => startMic()), 400);
+  }
+};
+</script>
+</body>
+</html>
